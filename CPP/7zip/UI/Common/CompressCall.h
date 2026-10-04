@@ -15,7 +15,12 @@ HRESULT CompressFiles(
     const UStringVector &names,
     bool email, bool showDialog, bool waitFinish);
 
-void ExtractArchives(const UStringVector &arcPaths, const UString &outFolder, bool showDialog, bool elimDup, UInt32 writeZone);
+/* smartMode: the output directory for every archive is chosen by
+   the top-level items of that archive (see SmartExtract.h);
+   the (outFolder) value is ignored in that case. */
+
+void ExtractArchives(const UStringVector &arcPaths, const UString &outFolder,
+    bool showDialog, bool elimDup, UInt32 writeZone, bool smartMode = false);
 void TestArchives(const UStringVector &arcPaths, bool hashMode = false);
 
 void CalcChecksum(const UStringVector &paths,

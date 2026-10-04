@@ -274,6 +274,7 @@ static const CContextMenuCommand g_Commands[] =
   CMD_REC( kExtract,     "Extract",     IDS_CONTEXT_EXTRACT),
   CMD_REC( kExtractHere, "ExtractHere", IDS_CONTEXT_EXTRACT_HERE),
   CMD_REC( kExtractTo,   "ExtractTo",   IDS_CONTEXT_EXTRACT_TO),
+  CMD_REC( kSmartExtract, "SmartExtract", IDS_CONTEXT_SMART_EXTRACT),
   CMD_REC( kTest,        "Test",        IDS_CONTEXT_TEST),
   CMD_REC( kCompress,           "Compress",           IDS_CONTEXT_COMPRESS),
   CMD_REC( kCompressEmail,      "CompressEmail",      IDS_CONTEXT_COMPRESS_EMAIL),
@@ -865,6 +866,15 @@ Z7_COMWF_B CZipContextMenu::QueryContextMenu(HMENU hMenu, UINT indexMenu,
           Set_UserString_in_LastCommand(s);
           MyInsertMenu(popupMenu, subIndex++, currentCommandID++, s, bitmap);
         }
+
+        if ((contextMenuFlags & NContextMenuFlags::kSmartExtract) != 0)
+        {
+          // Smart Extract
+          CCommandMapItem cmi;
+          cmi.Folder = baseFolder;
+          AddCommand(kSmartExtract, mainString, cmi);
+          MyInsertMenu(popupMenu, subIndex++, currentCommandID++, mainString, bitmap);
+        }
       }
 
       if ((contextMenuFlags & NContextMenuFlags::kTest) != 0)
@@ -1276,6 +1286,7 @@ HRESULT CZipContextMenu::InvokeCommandCommon(const CCommandMapItem &cmi)
       case kExtract:
       case kExtractHere:
       case kExtractTo:
+      case kSmartExtract:
       {
         if (_attribs.FirstDirIndex != -1)
         {
@@ -1283,9 +1294,10 @@ HRESULT CZipContextMenu::InvokeCommandCommon(const CCommandMapItem &cmi)
           break;
         }
         ExtractArchives(_fileNames, cmi.Folder,
-            (cmdID == kExtract), // showDialog
+            (cmdID == kExtract || cmdID == kSmartExtract), // showDialog
             (cmdID == kExtractTo) && _elimDup.Val, // elimDup
-            _writeZone
+            _writeZone,
+            (cmdID == kSmartExtract) // smartMode: 7zG chooses output dir
             );
         break;
       }

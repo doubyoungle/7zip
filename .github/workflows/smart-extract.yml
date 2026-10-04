@@ -71,7 +71,7 @@ jobs:
           cd CPP\7zip\UI\Console
           nmake PLATFORM=x64
 
-      - name: Build 7zG.exe (GUI client)
+      - name: Build 7zG.exe (GUI client used by the shell extension)
         shell: cmd
         run: |
           set "LIB=%LIB%;%CD%\_libs"
@@ -83,22 +83,6 @@ jobs:
         run: |
           set "LIB=%LIB%;%CD%\_libs"
           cd CPP\7zip\UI\Explorer
-          nmake PLATFORM=x64
-
-      - name: Build SFX modules (7z.sfx, 7zCon.sfx)
-        shell: cmd
-        run: |
-          cd CPP\7zip\Bundles\SFXWin
-          nmake PLATFORM=x64
-          cd ..\SFXCon
-          nmake PLATFORM=x64
-
-      - name: Build installer stub and uninstaller
-        shell: cmd
-        run: |
-          cd C\Util\7zipInstall
-          nmake PLATFORM=x64
-          cd ..\7zipUninstall
           nmake PLATFORM=x64
 
       - name: Setup MSVC x86 environment
@@ -113,49 +97,33 @@ jobs:
           cd CPP\7zip\UI\Explorer
           nmake
 
-      - name: Collect binaries and payload files
+      - name: Collect binaries
         shell: cmd
         run: |
           mkdir _bin
-          mkdir _payload
           copy CPP\7zip\Bundles\Fm\x64\7zFM.exe _bin\
           copy CPP\7zip\Bundles\Alone\x64\7za.exe _bin\
-          copy CPP\7zip\Bundles\Format7zF\x64\7z.dll _payload\
-          copy CPP\7zip\UI\Console\x64\7z.exe _payload\
-          copy CPP\7zip\UI\GUI\x64\7zG.exe _payload\
-          copy CPP\7zip\Bundles\Fm\x64\7zFM.exe _payload\
-          copy CPP\7zip\UI\Explorer\x64\7-zip.dll _payload\
-          copy CPP\7zip\UI\Explorer\o\7-zip.dll _payload\7-zip32.dll
-          copy CPP\7zip\Bundles\SFXWin\x64\7z.sfx _payload\
-          copy CPP\7zip\Bundles\SFXCon\x64\7zCon.sfx _payload\
-          copy C\Util\7zipUninstall\x64\7zipUninstall.exe _payload\Uninstall.exe
-          copy DOC\License.txt _payload\
-          copy DOC\readme.txt _payload\
-          copy DOC\src-history.txt _payload\History.txt
-
-      - name: Assemble the installer (stub + appended 7z payload)
-        shell: cmd
-        run: |
-          cd _payload
-          ..\_bin\7za.exe a -t7z -mx=9 ..\_bin\payload.7z * > nul
-          cd ..
-          copy /b C\Util\7zipInstall\x64\7zipInstall.exe + _bin\payload.7z _bin\7z2603-smart-extract-x64.exe
+          copy CPP\7zip\UI\GUI\x64\7zG.exe _bin\
+          copy CPP\7zip\Bundles\Format7zF\x64\7z.dll _bin\
+          copy CPP\7zip\UI\Console\x64\7z.exe _bin\
+          copy CPP\7zip\UI\Explorer\x64\7-zip.dll _bin\
+          copy CPP\7zip\UI\Explorer\o\7-zip.dll _bin\7-zip32.dll
           dir _bin
+          (
+            echo HOWTO verify the Smart Extract context menu:
+            echo 1. Open 7-Zip File Manager: Tools ^> Options ^> 7-Zip page,
+            echo    enable the "Smart Extract" checkbox, click OK.
+            echo 2. Close 7-Zip windows, replace in your 7-Zip install folder:
+            echo    7zFM.exe 7zG.exe 7z.dll 7z.exe 7-zip.dll  (backup first^)
+            echo 3. Restart Explorer: taskkill /f /im explorer.exe ^& start explorer.exe
+            echo 4. Right-click an archive ^> 7-Zip ^> Smart Extract.
+          ) > _bin\HOWTO-verify.txt
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
           name: 7zip-smart-extract-x64
-          path: |
-            _bin/7zFM.exe
-            _bin/7za.exe
-          if-no-files-found: error
-
-      - name: Upload installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: 7zip-smart-extract-installer
-          path: _bin/7z2603-smart-extract-x64.exe
+          path: _bin/*
           if-no-files-found: error
 
   test:
@@ -180,45 +148,3 @@ jobs:
           name: smart-extract-test-output
           path: test-output/*
           if-no-files-found: ignore
-
-  verify-install:
-    needs: build
-    runs-on: windows-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: 7zip-smart-extract-installer
-          path: _installer
-
-      - name: Install silently
-        shell: pwsh
-        run: |
-          $p = Start-Process -FilePath "_installer\7z2603-smart-extract-x64.exe" -ArgumentList '/S' -Wait -PassThru
-          Write-Host "installer exit code: $($p.ExitCode)"
-          $dir = Join-Path $env:ProgramFiles '7-Zip'
-          foreach ($f in '7z.exe', '7z.dll', '7zFM.exe', '7zG.exe', '7-zip.dll', '7-zip32.dll', 'Uninstall.exe') {
-            if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $dir\$f" }
-          }
-          Write-Host "install files OK: $dir"
-          if (-not (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\7-Zip')) {
-            throw 'uninstall registry key missing'
-          }
-          if (-not (Test-Path 'HKLM:\SOFTWARE\Classes\CLSID\{23170F69-40C1-278A-1000-000100020000}\InprocServer32')) {
-            throw 'shell extension CLSID registry key missing'
-          }
-          Write-Host 'registry OK'
-
-      - name: Verify installed 7z.exe works
-        shell: pwsh
-        run: |
-          & "$env:ProgramFiles\7-Zip\7z.exe" i | Select-Object -First 6
-          if ($LASTEXITCODE -ne 0) { throw "installed 7z.exe failed: $LASTEXITCODE" }
-
-      - name: Uninstall silently
-        shell: pwsh
-        run: |
-          $p = Start-Process -FilePath "$env:ProgramFiles\7-Zip\Uninstall.exe" -ArgumentList '/S' -Wait -PassThru
-          Write-Host "uninstaller exit code: $($p.ExitCode)"
-          Start-Sleep -Seconds 2
-          if (Test-Path "$env:ProgramFiles\7-Zip\7zFM.exe") { throw '7zFM.exe still present after uninstall' }
-          Write-Host 'uninstall OK'

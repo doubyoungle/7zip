@@ -13,9 +13,10 @@
 
 | ID    | 用途                       | 英文默认值 |
 |-------|----------------------------|------------|
-| 560   | 菜单项（Smart Extract）    | `&Smart Extract` |
+| 560   | 7zFM File 菜单项           | `&Smart Extract` |
 | 7220  | （保留）菜单/按钮文本      | `Smart Extract` |
-| 7221  | 加密包回退提示消息         | `Cannot list the contents of archive '{0}' (it can be encrypted). Smart extract uses the 'Extract to folder' mode for it.` |
+| 7221  | 加密包回退提示消息（7zFM） | `Cannot list the contents of archive '{0}' (it can be encrypted). Smart extract uses the 'Extract to folder' mode for it.` |
+| 2331  | 资源管理器右键菜单项（7-zip.dll）及 Tools > Options 里的条目 | `Smart Extract` |
 
 ## 合并到 zh-cn.ttt 的方法
 
@@ -27,15 +28,21 @@
    560=智能解压缩
    ```
 
-3. 找到 `7206=...`（"Info" 按钮的翻译）。在其后插入以下两行：
+3. 找到 `2330=...`（"Compress to {0} and email" 的翻译）。在其后插入：
+
+   ```
+   2331=智能解压缩
+   ```
+
+4. 找到 `7206=...`（"Info" 按钮的翻译）。在其后插入以下两行：
 
    ```
    7220=智能解压缩
    7221=无法列出压缩包内容 "{0}"（可能已加密）。\n智能解压缩对它使用"解压到文件夹"模式。
    ```
 
-4. 保存（保持 UTF-8 编码），重启 7-Zip File Manager，并把语言切换为
-   简体中文（Tools > Options > Language）。
+5. 保存（保持 UTF-8 编码），重启 7-Zip File Manager 和资源管理器，
+   并把语言切换为简体中文（Tools > Options > Language）。
 
 ## 注意
 

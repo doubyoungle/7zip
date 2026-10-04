@@ -34,12 +34,8 @@ jobs:
           } else {
             Write-Host "hhctrl.lib not found in Windows SDK, generating import library from hhctrl.ocx exports"
             $def = "_libs\hhctrl.def"
-            @"
-LIBRARY HHCTRL.OCX
-EXPORTS
-    HtmlHelpA
-    HtmlHelpW
-"@ | Set-Content $def -Encoding ascii
+            $defLines = @('LIBRARY HHCTRL.OCX', 'EXPORTS', '    HtmlHelpA', '    HtmlHelpW')
+            $defLines | Set-Content $def -Encoding ascii
             lib /NOLOGO /DEF:_libs\hhctrl.def /MACHINE:X64 /OUT:_libs\htmlhelp.lib
           }
 

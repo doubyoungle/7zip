@@ -159,26 +159,39 @@ jobs:
         shell: cmd
         run: |
           mkdir _payload
-          copy CPP\7zip\Bundles\Format7zF\x64\7z.dll _payload\
-          copy CPP\7zip\UI\Console\x64\7z.exe _payload\
-          copy CPP\7zip\UI\GUI\x64\7zG.exe _payload\
-          copy CPP\7zip\Bundles\Fm\x64\7zFM.exe _payload\
-          copy CPP\7zip\UI\Explorer\x64\7-zip.dll _payload\
-          copy CPP\7zip\UI\Explorer\x86\7-zip.dll _payload\7-zip32.dll
-          copy CPP\7zip\Bundles\SFXWin\x64\7z.sfx _payload\
-          copy CPP\7zip\Bundles\SFXCon\x64\7zCon.sfx _payload\
-          copy C\Util\7zipUninstall\x64\7zipUninstall.exe _payload\Uninstall.exe
-          copy DOC\License.txt _payload\
-          copy DOC\readme.txt _payload\
-          copy DOC\src-history.txt _payload\History.txt
-          if exist "%ProgramFiles%\7-Zip\7-zip.chm" copy "%ProgramFiles%\7-Zip\7-zip.chm" _payload\
-          if exist "%ProgramFiles%\7-Zip\Lang" xcopy /E /I /Q "%ProgramFiles%\7-Zip\Lang" _payload\Lang\
-          for %f in (7z.dll 7z.exe 7zG.exe 7zFM.exe 7-zip.dll 7-zip32.dll 7z.sfx 7zCon.sfx Uninstall.exe License.txt readme.txt History.txt) do @if not exist _payload\%f exit /b 1
+          copy CPP\7zip\Bundles\Format7zF\x64\7z.dll _payload\ || (echo ::error::payload source missing: 7z.dll & exit /b 1)
+          copy CPP\7zip\UI\Console\x64\7z.exe _payload\ || (echo ::error::payload source missing: 7z.exe & exit /b 1)
+          copy CPP\7zip\UI\GUI\x64\7zG.exe _payload\ || (echo ::error::payload source missing: 7zG.exe & exit /b 1)
+          copy CPP\7zip\Bundles\Fm\x64\7zFM.exe _payload\ || (echo ::error::payload source missing: 7zFM.exe & exit /b 1)
+          copy CPP\7zip\UI\Explorer\x64\7-zip.dll _payload\ || (echo ::error::payload source missing: 7-zip.dll & exit /b 1)
+          copy CPP\7zip\UI\Explorer\x86\7-zip.dll _payload\7-zip32.dll || (echo ::error::payload source missing: Explorer\x86\7-zip.dll & exit /b 1)
+          copy CPP\7zip\Bundles\SFXWin\x64\7z.sfx _payload\ || (echo ::error::payload source missing: 7z.sfx & exit /b 1)
+          copy CPP\7zip\Bundles\SFXCon\x64\7zCon.sfx _payload\ || (echo ::error::payload source missing: 7zCon.sfx & exit /b 1)
+          copy C\Util\7zipUninstall\x64\7zipUninstall.exe _payload\Uninstall.exe || (echo ::error::payload source missing: Uninstall.exe & exit /b 1)
+          copy DOC\License.txt _payload\ || (echo ::error::payload source missing: License.txt & exit /b 1)
+          copy DOC\readme.txt _payload\ || (echo ::error::payload source missing: readme.txt & exit /b 1)
+          copy DOC\src-history.txt _payload\History.txt || (echo ::error::payload source missing: src-history.txt & exit /b 1)
+          if exist "%ProgramW6432%\7-Zip\7-zip.chm" copy "%ProgramW6432%\7-Zip\7-zip.chm" _payload\
+          if exist "%ProgramW6432%\7-Zip\Lang" xcopy /E /I /Q "%ProgramW6432%\7-Zip\Lang" _payload\Lang\
+          dir _payload
           cd _payload
-          ..\_bin\7za.exe a -t7z -mx9 ..\_bin\payload.7z * || exit /b 1
+          ..\_bin\7za.exe a -t7z -mx9 ..\_bin\payload.7z * || (echo ::error::payload packaging failed & exit /b 1)
           cd ..
-          copy /b C\Util\7zipInstall\x64\7zipInstall.exe + _bin\payload.7z _bin\7z2603-smart-extract-x64.exe || exit /b 1
+          copy /b C\Util\7zipInstall\x64\7zipInstall.exe + _bin\payload.7z _bin\7z2603-smart-extract-x64.exe || (echo ::error::installer assembly failed & exit /b 1)
           dir _bin
+
+      - name: List build outputs
+        if: always()
+        shell: pwsh
+        run: |
+          foreach ($d in 'CPP\7zip\Bundles\SFXWin\x64', 'CPP\7zip\Bundles\SFXCon\x64', 'C\Util\7zipInstall\x64', 'C\Util\7zipUninstall\x64', 'CPP\7zip\UI\Explorer\x86', '_payload') {
+            if (Test-Path $d) {
+              $names = (Get-ChildItem $d -File | ForEach-Object { $_.Name } | Select-Object -First 15) -join ', '
+              Write-Host "output dir [$d]: $names"
+            } else {
+              Write-Host "output dir missing: $d"
+            }
+          }
 
       - name: Upload installer
         uses: actions/upload-artifact@v4

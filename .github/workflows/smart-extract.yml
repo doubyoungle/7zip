@@ -1,0 +1,96 @@
+name: smart-extract
+
+on:
+  push:
+    branches:
+      - 'feature/smart-extract'
+  pull_request:
+    branches:
+      - 'feature/smart-extract'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC x64 environment (vcvars64)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Prepare htmlhelp.lib (x64 import library for HtmlHelpW)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path _libs | Out-Null
+          $kitLib = "C:\Program Files (x86)\Windows Kits\10\Lib"
+          $found = Get-ChildItem -Path $kitLib -Recurse -Filter "hhctrl.lib" -ErrorAction SilentlyContinue |
+                   Where-Object { $_.FullName -like "*\um\x64*" } |
+                   Sort-Object FullName -Descending | Select-Object -First 1
+          if ($found) {
+            Copy-Item $found.FullName _libs\htmlhelp.lib
+            Write-Host "Copied htmlhelp import library from $($found.FullName)"
+          } else {
+            Write-Host "hhctrl.lib not found in Windows SDK, generating import library from hhctrl.ocx exports"
+            $def = "_libs\hhctrl.def"
+            @"
+LIBRARY HHCTRL.OCX
+EXPORTS
+    HtmlHelpA
+    HtmlHelpW
+"@ | Set-Content $def -Encoding ascii
+            lib /NOLOGO /DEF:_libs\hhctrl.def /MACHINE:X64 /OUT:_libs\htmlhelp.lib
+          }
+
+      - name: Build 7zFM.exe (GUI, File Manager)
+        shell: cmd
+        run: |
+          set "LIB=%LIB%;%CD%\_libs"
+          cd CPP\7zip\Bundles\Fm
+          nmake PLATFORM=x64
+
+      - name: Build 7za.exe (standalone console)
+        shell: cmd
+        run: |
+          set "LIB=%LIB%;%CD%\_libs"
+          cd CPP\7zip\Bundles\Alone
+          nmake PLATFORM=x64
+
+      - name: Collect binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path _bin | Out-Null
+          Copy-Item CPP\7zip\Bundles\Fm\x64\7zFM.exe _bin\
+          Copy-Item CPP\7zip\Bundles\Alone\x64\7za.exe _bin\
+          Get-ChildItem _bin | Format-Table Name,Length
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: 7zip-smart-extract-x64
+          path: _bin/*
+          if-no-files-found: error
+
+  test:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: 7zip-smart-extract-x64
+          path: _bin
+
+      - name: Run smart extract tests
+        shell: pwsh
+        run: .github\workflows\test-smart-extract.ps1 -BinDir "$env:GITHUB_WORKSPACE\_bin"
+
+      - name: Upload test details
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-extract-test-output
+          path: test-output/*
+          if-no-files-found: ignore

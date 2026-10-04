@@ -232,43 +232,90 @@ jobs:
           name: 7zip-smart-extract-installer
           path: _installer
 
+      - name: Remove preinstalled 7-Zip (clean slate for the test)
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:ProgramFiles '7-Zip'
+          $exe = Join-Path $dir '7z.exe'
+          if (Test-Path $exe) {
+            $old = (Get-Item $exe).VersionInfo.FileVersion
+            Write-Host "::notice::preexisting 7-Zip version: $old"
+            $un = Join-Path $dir 'Uninstall.exe'
+            if (Test-Path $un) {
+              $u = Start-Process -FilePath $un -ArgumentList '/S' -Wait -PassThru
+              Write-Host "preexisting uninstaller exit code: $($u.ExitCode)"
+            } else {
+              Write-Host '::warning::preexisting 7-Zip has no Uninstall.exe'
+            }
+            Start-Sleep -Seconds 3
+            if (Test-Path $exe) {
+              Write-Host '::warning::preexisting 7z.exe still present after silent uninstall'
+            } else {
+              Write-Host 'preexisting 7-Zip removed'
+            }
+          } else {
+            Write-Host 'no preexisting 7-Zip found'
+          }
+
       - name: Install silently
         shell: pwsh
         run: |
           $p = Start-Process -FilePath "_installer\7z2603-smart-extract-x64.exe" -ArgumentList '/S' -Wait -PassThru
           Write-Host "installer exit code: $($p.ExitCode)"
           $dir = Join-Path $env:ProgramFiles '7-Zip'
+          $failures = New-Object System.Collections.Generic.List[string]
+          if ($p.ExitCode -ne 0) { $failures.Add("installer exit code: $($p.ExitCode)") }
           foreach ($f in '7z.exe', '7z.dll', '7zFM.exe', '7zG.exe', '7-zip.dll', '7-zip32.dll', '7z.sfx', '7zCon.sfx', 'Uninstall.exe') {
-            if (-not (Test-Path (Join-Path $dir $f))) { throw "missing after install: $dir\$f" }
+            if (-not (Test-Path (Join-Path $dir $f))) { $failures.Add("missing after install: $f") }
           }
-          Write-Host "install files OK: $dir"
-          if (-not (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\7-Zip')) {
-            throw 'uninstall registry key missing'
+          $sevenExe = Join-Path $dir '7z.exe'
+          if (Test-Path $sevenExe) {
+            $item = Get-Item $sevenExe
+            $ver = $item.VersionInfo.FileVersion
+            Write-Host "::notice::installed 7z.exe version: $ver, size: $($item.Length)"
+            if ($ver -notlike '26.*') { $failures.Add("installed 7z.exe is not our build, version: $ver") }
           }
-          if (-not (Test-Path 'HKLM:\SOFTWARE\Classes\CLSID\{23170F69-40C1-278A-1000-000100020000}\InprocServer32')) {
-            throw 'shell extension CLSID registry key missing'
+          if (-not (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\7-Zip')) { $failures.Add('uninstall registry key missing') }
+          if (-not (Test-Path 'HKLM:\SOFTWARE\Classes\CLSID\{23170F69-40C1-278A-1000-000100020000}\InprocServer32')) { $failures.Add('shell extension CLSID registry key missing') }
+          if ($failures.Count -gt 0) {
+            $failures | ForEach-Object { Write-Host "::error::$_" }
+            throw ($failures -join '; ')
           }
-          Write-Host 'registry OK'
+          Write-Host 'install checks OK'
 
       - name: Smoke-test the installed 7z.exe (smart extract end to end)
         shell: pwsh
         run: |
           $seven = Join-Path $env:ProgramFiles '7-Zip\7z.exe'
           $t = Join-Path $env:RUNNER_TEMP 'smetest'
+          if (Test-Path $t) { Remove-Item $t -Recurse -Force }
           New-Item -ItemType Directory -Force $t | Out-Null
           Push-Location $t
           try {
             Set-Content a.txt 'a'
             Set-Content b.txt 'b'
-            & $seven a multi.zip a.txt b.txt | Out-Null
-            if ($LASTEXITCODE -ne 0) { throw "failed to create test archive: $LASTEXITCODE" }
+            $log1 = & $seven a multi.zip a.txt b.txt 2>&1 | Out-String
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::error::creating the test archive failed, exit code: $LASTEXITCODE"
+              Write-Host $log1
+              throw 'archive creation failed'
+            }
             New-Item -ItemType Directory -Force out | Out-Null
             Copy-Item multi.zip out\
             Push-Location out
             try {
-              & $seven x -sme multi.zip -y | Out-Null
-              if ($LASTEXITCODE -ne 0) { throw "installed 7z.exe x -sme failed: $LASTEXITCODE" }
-              if (-not (Test-Path 'multi\a.txt')) { throw 'smart extract via installed 7z.exe produced a wrong layout' }
+              $log2 = & $seven x -sme multi.zip -y 2>&1 | Out-String
+              if ($LASTEXITCODE -ne 0) {
+                Write-Host "::error::installed 7z.exe x -sme failed, exit code: $LASTEXITCODE"
+                Write-Host $log2
+                throw 'x -sme failed'
+              }
+              if (-not (Test-Path 'multi\a.txt')) {
+                $listing = (Get-ChildItem -Recurse | ForEach-Object { $_.FullName }) -join '; '
+                Write-Host "::error::smart extract produced a wrong layout, contents: $listing"
+                Write-Host $log2
+                throw 'wrong layout'
+              }
               Write-Host 'installed 7z.exe smart extract OK'
             }
             finally { Pop-Location }
@@ -282,5 +329,8 @@ jobs:
           $p = Start-Process -FilePath (Join-Path $dir 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
           Write-Host "uninstaller exit code: $($p.ExitCode)"
           Start-Sleep -Seconds 3
-          if (Test-Path (Join-Path $dir '7zFM.exe')) { throw '7zFM.exe still present after uninstall' }
+          if (Test-Path (Join-Path $dir '7zFM.exe')) {
+            Write-Host '::error::7zFM.exe still present after uninstall'
+            throw 'still present after uninstall'
+          }
           Write-Host 'uninstall OK'

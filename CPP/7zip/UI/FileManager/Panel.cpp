@@ -1139,7 +1139,7 @@ void CPanel::SmartExtractArchives()
       UString outFolder = curDir;
       outFolder.Add_PathSepar();
       ::ExtractArchives(herePaths, outFolder
-          , true   // showDialog
+          , false  // showDialog: smart extract extracts directly
           , false  // elimDup
           , ci.WriteZone
           );
@@ -1167,7 +1167,7 @@ void CPanel::SmartExtractArchives()
     else
       srcPaths.Add(arcPaths[j]);
     ::ExtractArchives(srcPaths, outDir
-        , true   // showDialog
+        , false  // showDialog: smart extract extracts directly
         , false  // elimDup
         , ci.WriteZone
         );

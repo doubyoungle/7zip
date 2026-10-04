@@ -1294,7 +1294,7 @@ HRESULT CZipContextMenu::InvokeCommandCommon(const CCommandMapItem &cmi)
           break;
         }
         ExtractArchives(_fileNames, cmi.Folder,
-            (cmdID == kExtract || cmdID == kSmartExtract), // showDialog
+            (cmdID == kExtract), // showDialog: only "Extract files..." asks for options
             (cmdID == kExtractTo) && _elimDup.Val, // elimDup
             _writeZone,
             (cmdID == kSmartExtract) // smartMode: 7zG chooses output dir

@@ -922,6 +922,7 @@ public:
   int FindDir_InOperatedList(const CRecordVector<UInt32> &indices) const;
   void GetFilePaths(const CRecordVector<UInt32> &indices, UStringVector &paths) const;
   void ExtractArchives();
+  void SmartExtractArchives();
   void TestArchives();
 
   void Get_ZoneId_Stream_from_ParentFolders(CByteBuffer &buf);

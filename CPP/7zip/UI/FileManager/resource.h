@@ -59,6 +59,7 @@
 // #define IDM_EXIT                 557
 #define IDM_LINK                 558
 #define IDM_ALT_STREAMS          559
+#define IDM_SMART_EXTRACT        560
 
 #define IDM_VER_EDIT             580
 #define IDM_VER_COMMIT           581
@@ -185,6 +186,9 @@
 #define IDS_BUTTON_MOVE                 7204
 #define IDS_BUTTON_DELETE               7205
 #define IDS_BUTTON_INFO                 7206
+
+#define IDS_SMART_EXTRACT               7220
+#define IDS_SMART_EXTRACT_FALLBACK      7221
 
 #define IDS_SPLITTING                   7303
 #define IDS_SPLIT_CONFIRM_TITLE         7304

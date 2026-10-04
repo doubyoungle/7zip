@@ -614,6 +614,10 @@ void CFileMenu::Load(HMENU hMenu, unsigned startPos)
       if (item.wID == IDM_DIFF && diffPath.IsEmpty())
         continue;
 
+      // smart extract is supported only for archives in file-system folders
+      if (item.wID == IDM_SMART_EXTRACT && !isFsFolder)
+        continue;
+
       if (item.wID == IDM_OPEN_INSIDE_ONE || item.wID == IDM_OPEN_INSIDE_PARSER)
       {
         // We use diff as "super mode" marker for additional commands.
@@ -753,6 +757,7 @@ bool ExecuteFileCommand(unsigned id)
     case IDM_OPEN_INSIDE_PARSER: g_App.OpenItemInside(L"#"); break;
 
     case IDM_OPEN_OUTSIDE: g_App.OpenItemOutside(); break;
+    case IDM_SMART_EXTRACT: g_App.SmartExtractArchives(); break;
     case IDM_FILE_VIEW: g_App.EditItem(false); break;
     case IDM_FILE_EDIT: g_App.EditItem(true); break;
     case IDM_RENAME: g_App.Rename(); break;

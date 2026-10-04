@@ -8,6 +8,7 @@
 #include "../../../Common/StringConvert.h"
 
 #include "../../../Windows/ErrorMsg.h"
+#include "../../../Windows/FileDir.h"
 #include "../../../Windows/FileName.h"
 #include "../../../Windows/PropVariant.h"
 #include "../../../Windows/Thread.h"
@@ -19,6 +20,8 @@
 
 #include "../Common/ArchiveName.h"
 #include "../Common/CompressCall.h"
+#include "../Common/LoadCodecs.h"
+#include "../Common/SmartExtract.h"
 #include "../Common/ZipRegistry.h"
 
 #include "../Agent/IFolderArchive.h"
@@ -1036,6 +1039,139 @@ void CPanel::ExtractArchives()
       , false  // elimDup
       , ci.WriteZone
       );
+}
+
+HRESULT LoadGlobalCodecs();
+extern CCodecs *g_CodecsObj;
+
+void CPanel::SmartExtractArchives()
+{
+  if (!_parentFolders.IsEmpty())
+  {
+    _panelCallback->OnCopy(false, false);
+    return;
+  }
+  CRecordVector<UInt32> indices;
+  Get_ItemIndices_Operated(indices);
+  if (indices.IsEmpty() || FindDir_InOperatedList(indices) != -1)
+  {
+    MessageBox_Error_LangID(IDS_SELECT_FILES);
+    return;
+  }
+
+  {
+    const HRESULT loadResult = LoadGlobalCodecs();
+    if (loadResult != S_OK)
+    {
+      MessageBox_Error(TEXT("Cannot load archive codecs"));
+      return;
+    }
+  }
+
+  CContextMenuInfo ci;
+  ci.Load();
+
+  UString curDir = GetFsPath();
+
+  FString tempRoot;
+  {
+    FString tempPathF;
+    if (!NFile::NDir::MyGetTempPath(tempPathF))
+    {
+      MessageBox_Error(TEXT("Cannot get the temporary folder path"));
+      return;
+    }
+    tempRoot = tempPathF + FTEXT("7zSmartExtract");
+    if (!NFile::NDir::CreateComplexDir(tempRoot))
+    {
+      MessageBox_Error(TEXT("Cannot create the temporary folder"));
+      return;
+    }
+  }
+
+  const unsigned numArchives = indices.Size();
+  CObjectVector<NSmartExtract::CPlan> plans;
+  UStringVector arcPaths;
+  UStringVector fallbackNames;
+
+  for (unsigned i = 0; i < numArchives; i++)
+  {
+    const UString arcPath = GetItemFullPath(indices[i]);
+    NSmartExtract::CPlan plan;
+    FString tempSubDir = tempRoot;
+    tempSubDir.Add_PathSepar();
+    {
+      FString number;
+      number.Add_UInt32(i);
+      tempSubDir += number;
+    }
+    NFile::NDir::CreateComplexDir(tempSubDir);
+    NSmartExtract::MakePlan(g_CodecsObj, us2fs(arcPath), tempSubDir, plan);
+    if (!plan.Listed)
+      fallbackNames.Add(arcPath);
+    plans.Add(plan);
+    arcPaths.Add(arcPath);
+  }
+
+  if (!fallbackNames.IsEmpty())
+  {
+    UString names;
+    FOR_VECTOR (k, fallbackNames)
+    {
+      if (k != 0)
+        names.Add_LF();
+      names += fallbackNames[k];
+    }
+    MessageBox_Error(MyFormatNew(IDS_SMART_EXTRACT_FALLBACK, names));
+  }
+
+  // non-compound archives with a single top-level item are extracted
+  // to the current folder with one extraction call
+  {
+    UStringVector herePaths;
+    FOR_VECTOR (p, plans)
+      if (!plans[p].IsCompound
+          && plans[p].Listed
+          && plans[p].Mode == NSmartExtract::kSmart_ExtractHere)
+        herePaths.Add(arcPaths[p]);
+    if (!herePaths.IsEmpty())
+    {
+      UString outFolder = curDir;
+      outFolder.Add_PathSepar();
+      ::ExtractArchives(herePaths, outFolder
+          , true   // showDialog
+          , false  // elimDup
+          , ci.WriteZone
+          );
+    }
+  }
+
+  // the remaining archives: one extraction call per archive
+  FOR_VECTOR (j, plans)
+  {
+    const NSmartExtract::CPlan &plan = plans[j];
+    if (!plan.IsCompound
+        && plan.Listed
+        && plan.Mode == NSmartExtract::kSmart_ExtractHere)
+      continue; // it was handled above
+    UString outDir = curDir;
+    if (!(plan.Listed && plan.Mode == NSmartExtract::kSmart_ExtractHere))
+    {
+      // the fallback mode: extract to subfolder named after the archive
+      outDir += plan.FolderName;
+      outDir.Add_PathSepar();
+    }
+    UStringVector srcPaths;
+    if (plan.IsCompound)
+      srcPaths.Add(fs2us(plan.TempPath));
+    else
+      srcPaths.Add(arcPaths[j]);
+    ::ExtractArchives(srcPaths, outDir
+        , true   // showDialog
+        , false  // elimDup
+        , ci.WriteZone
+        );
+  }
 }
 
 /*

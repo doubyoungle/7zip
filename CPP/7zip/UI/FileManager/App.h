@@ -299,6 +299,7 @@ public:
 
   void AddToArchive() { GetFocusedPanel().AddToArchive(); }
   void ExtractArchives() { GetFocusedPanel().ExtractArchives(); }
+  void SmartExtractArchives() { GetFocusedPanel().SmartExtractArchives(); }
   void TestArchives() { GetFocusedPanel().TestArchives(); }
 
   void OnNotify(int ctrlID, LPNMHDR pnmh);

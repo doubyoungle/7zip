@@ -53,6 +53,7 @@ UI_COMMON_OBJS = \
   $O\OpenArchive.obj \
   $O\PropIDUtils.obj \
   $O\SetProperties.obj \
+  $O\SmartExtract.obj \
   $O\SortUtils.obj \
   $O\TempFiles.obj \
   $O\Update.obj \

@@ -39,6 +39,7 @@ BEGIN
     MENUITEM "Open Inside *",               IDM_OPEN_INSIDE_ONE
     MENUITEM "Open Inside #",               IDM_OPEN_INSIDE_PARSER
     MENUITEM "Open O&utside\tShift+Enter",  IDM_OPEN_OUTSIDE
+    MENUITEM "&Smart Extract",              IDM_SMART_EXTRACT
     MENUITEM "&View\tF3",                   IDM_FILE_VIEW
     MENUITEM "&Edit\tF4",                   IDM_FILE_EDIT
     MY_MENUITEM_SEPARATOR
@@ -254,6 +255,9 @@ BEGIN
   IDS_BUTTON_MOVE    "Move"
   IDS_BUTTON_DELETE  "Delete"
   IDS_BUTTON_INFO    "Info"
+
+  IDS_SMART_EXTRACT          "Smart Extract"
+  IDS_SMART_EXTRACT_FALLBACK "Cannot list the contents of archive '{0}' (it can be encrypted).\nSmart extract uses the 'Extract to folder' mode for it."
 
   IDS_SPLITTING            "Splitting..."
   IDS_SPLIT_CONFIRM_TITLE  "Confirm Splitting"

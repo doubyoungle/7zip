@@ -15,6 +15,7 @@
 
 #include "Extract.h"
 #include "SetProperties.h"
+#include "SmartExtract.h"
 
 using namespace NWindows;
 using namespace NFile;
@@ -350,7 +351,18 @@ HRESULT Extract(
 
   UInt64 totalPackProcessed = 0;
   bool thereAreNotOpenArcs = false;
-  
+
+  FString smartTempRoot;
+  if (options.SmartMode && !options.StdInMode && !options.TestMode)
+  {
+    FString tempPathF;
+    if (NDir::MyGetTempPath(tempPathF))
+    {
+      smartTempRoot = tempPathF + FTEXT("7zSmartExtract");
+      NFile::NDir::CreateComplexDir(smartTempRoot);
+    }
+  }
+
   for (i = 0; i < numArcs; i++)
   {
     if (skipArcs[i])
@@ -530,7 +542,85 @@ HRESULT Extract(
     #endif
     */
 
-    CArc &arc = arcLink.Arcs.Back();
+    const CExtractOptions *optionsPtr = &options;
+    CExtractOptions smartOptions;
+    CArchiveLink innerLink;      // is used for compound archives
+    bool extractInnerLink = false;
+    FString innerTempPath;
+    bool innerTempCleanup = false;
+    if (options.SmartMode && !options.StdInMode && !options.TestMode)
+    {
+      /* smart extract: choose the output directory by the set of
+         top-level items of this archive (the archive is already open here).
+         If the archive cannot be listed (for example, its headers are
+         encrypted and no password is available), we use the fallback
+         "extract to subfolder named after archive" mode.
+         For compound archives (foo.tar.gz) the wrapped archive (foo.tar)
+         was extracted to a temporary file by MakePlanFromArc(), and that
+         file is opened here, so the wrapped contents are extracted
+         in one pass. */
+      smartOptions = options;
+      UString arcName = arcPath;
+      {
+        const int sepPos = arcPath.ReverseFind_PathSepar();
+        if (sepPos >= 0)
+          arcName = arcPath.Ptr((unsigned)(sepPos + 1));
+      }
+      FString dirPrefix;
+      if (!NFile::NDir::GetOnlyDirPrefix(us2fs(arcPath), dirPrefix))
+        dirPrefix.Empty();
+      NName::NormalizeDirPathPrefix(dirPrefix);
+
+      FString tempSubDir = smartTempRoot;
+      tempSubDir.Add_PathSepar();
+      {
+        FString number;
+        number.Add_UInt32(i);
+        tempSubDir += number;
+      }
+      NFile::NDir::CreateComplexDir(tempSubDir);
+
+      NSmartExtract::CPlan plan;
+      RINOK(NSmartExtract::MakePlanFromArc(codecs, arcLink, arcName, tempSubDir, plan))
+
+      if (plan.Listed && plan.Mode == NSmartExtract::kSmart_ExtractHere)
+      {
+        // a single top-level item: extract to the directory of the archive
+        smartOptions.OutputDir = dirPrefix;
+      }
+      else
+      {
+        // fallback: extract to subfolder named after the archive
+        smartOptions.OutputDir = dirPrefix + us2fs(plan.FolderName);
+        NName::NormalizeDirPathPrefix(smartOptions.OutputDir);
+      }
+      smartOptions.OutDirMode = NExtractOutDirMode::k_Direct;
+
+      if (plan.IsCompound)
+      {
+        // open the wrapped archive that was extracted to the temporary file
+        result = NSmartExtract::OpenArchiveFileNoPassword(codecs, plan.TempPath, innerLink);
+        if (result == S_OK)
+        {
+          extractInnerLink = true;
+          innerTempPath = plan.TempPath;
+          innerTempCleanup = true;
+        }
+        else
+        {
+          // the wrapped archive cannot be opened:
+          // use the fallback mode and extract the original archive
+          smartOptions.OutputDir = dirPrefix + us2fs(
+              NSmartExtract::GetExtractFolderName(arcName));
+          NName::NormalizeDirPathPrefix(smartOptions.OutputDir);
+        }
+      }
+      optionsPtr = &smartOptions;
+    }
+
+    CArchiveLink &activeLink = extractInnerLink ? innerLink : arcLink;
+
+    CArc &arc = activeLink.Arcs.Back();
     arc.MTime.Def = !options.StdInMode
         #ifdef _WIN32
         && !fi.IsDevice
@@ -547,15 +637,18 @@ HRESULT Extract(
           false;
         #endif
 
-    RINOK(DecompressArchive(
+    HRESULT decompressResult = DecompressArchive(
         codecs,
-        arcLink,
+        activeLink,
         fi.Size + arcLink.VolumesSize,
         wildcardCensor,
-        options,
+        *optionsPtr,
         calcCrc,
         extractCallback, faeCallback, ecs,
-        errorMessage, packProcessed))
+        errorMessage, packProcessed);
+    if (innerTempCleanup)
+      NDir::DeleteFileAlways(innerTempPath);
+    RINOK(decompressResult)
 
     if (!options.StdInMode)
       packProcessed = fi.Size + arcLink.VolumesSize;
@@ -571,6 +664,9 @@ HRESULT Extract(
     RINOK(faeCallback->SetTotal(totalPackSize))
     RINOK(faeCallback->SetCompleted(&totalPackProcessed))
   }
+
+  if (!smartTempRoot.IsEmpty())
+    NFile::NDir::RemoveDirWithSubItems(smartTempRoot);
 
   st.NumFolders = ecs->NumFolders;
   st.NumFiles = ecs->NumFiles;

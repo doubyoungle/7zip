@@ -89,6 +89,7 @@ UI_COMMON_OBJS = \
   $O/DefaultName.o \
   $O/EnumDirItems.o \
   $O/Extract.o \
+  $O/SmartExtract.o \
   $O/ExtractingFilePath.o \
   $O/HashCalc.o \
   $O/LoadCodecs.o \

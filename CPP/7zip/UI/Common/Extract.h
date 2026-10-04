@@ -36,9 +36,10 @@ struct CExtractOptionsBase
   NExtract::NOverwriteMode::EEnum OverwriteMode;
   NExtract::NZoneIdMode::EEnum ZoneMode;
   NExtractOutDirMode::EEnum OutDirMode;
+  bool SmartMode; // choose output directory by top-level items of archive
 
   CExtractNtOptions NtOptions;
-  
+
   FString OutputDir; // normalized : with path separator at the end
   UString HashDir;
 
@@ -50,7 +51,8 @@ struct CExtractOptionsBase
       PathMode(NExtract::NPathMode::kFullPaths),
       OverwriteMode(NExtract::NOverwriteMode::kAsk),
       ZoneMode(NExtract::NZoneIdMode::kNone),
-      OutDirMode(NExtractOutDirMode::k_ReplaceAsterisk)
+      OutDirMode(NExtractOutDirMode::k_ReplaceAsterisk),
+      SmartMode(false)
       {}
 };
 
@@ -59,8 +61,7 @@ struct CExtractOptions: public CExtractOptionsBase
   bool StdInMode;
   bool StdOutMode;
   bool YesToAll;
-  bool TestMode;
-  
+  bool TestMode;  
   // bool ShowDialog;
   // bool PasswordEnabled;
   // UString Password;

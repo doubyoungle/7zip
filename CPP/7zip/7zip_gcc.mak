@@ -910,6 +910,8 @@ $O/PropIDUtils.o: ../../UI/Common/PropIDUtils.cpp
 	$(CXX) $(CXXFLAGS) $<
 $O/SetProperties.o: ../../UI/Common/SetProperties.cpp
 	$(CXX) $(CXXFLAGS) $<
+$O/SmartExtract.o: ../../UI/Common/SmartExtract.cpp
+	$(CXX) $(CXXFLAGS) $<
 $O/SortUtils.o: ../../UI/Common/SortUtils.cpp
 	$(CXX) $(CXXFLAGS) $<
 $O/TempFiles.o: ../../UI/Common/TempFiles.cpp

@@ -207,7 +207,8 @@ enum Enum
   kNameTrailReplace,
 
   kDeleteAfterCompressing,
-  kSetArcMTime
+  kSetArcMTime,
+  kSmartExtract
 
   #ifndef Z7_NO_CRYPTO
   , kPassword
@@ -359,7 +360,8 @@ static const CSwitchForm kSwitchForms[] =
   { "snt", SWFRM_MINUS },
   
   { "sdel", SWFRM_SIMPLE },
-  { "stl", SWFRM_SIMPLE }
+  { "stl", SWFRM_SIMPLE },
+  { "sme", SWFRM_SIMPLE }
 
   #ifndef Z7_NO_CRYPTO
   , { "p", SWFRM_STRING }
@@ -1741,6 +1743,7 @@ void CArcCmdLineParser::Parse2(CArcCmdLineOptions &options)
           (index == 1) ? NExtractOutDirMode::k_AddArcName :
                          NExtractOutDirMode::k_ReplaceAsterisk;
       }
+      eo.SmartMode = parser[NKey::kSmartExtract].ThereIs;
 
       eo.OverwriteMode = NExtract::NOverwriteMode::kAsk;
       if (parser[NKey::kOverwrite].ThereIs)

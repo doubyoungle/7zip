@@ -68,6 +68,7 @@ UI_COMMON_OBJS = \
   $O\ArchiveOpenCallback.obj \
   $O\DefaultName.obj \
   $O\Extract.obj \
+  $O\SmartExtract.obj \
   $O\ExtractingFilePath.obj \
   $O\LoadCodecs.obj \
   $O\OpenArchive.obj \

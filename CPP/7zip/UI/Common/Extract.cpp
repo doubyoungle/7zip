@@ -15,7 +15,9 @@
 
 #include "Extract.h"
 #include "SetProperties.h"
+#ifndef Z7_SFX
 #include "SmartExtract.h"
+#endif
 
 using namespace NWindows;
 using namespace NFile;
@@ -352,6 +354,7 @@ HRESULT Extract(
   UInt64 totalPackProcessed = 0;
   bool thereAreNotOpenArcs = false;
 
+#ifndef Z7_SFX
   FString smartTempRoot;
   if (options.SmartMode && !options.StdInMode && !options.TestMode)
   {
@@ -362,6 +365,7 @@ HRESULT Extract(
       NFile::NDir::CreateComplexDir(smartTempRoot);
     }
   }
+#endif
 
   for (i = 0; i < numArcs; i++)
   {
@@ -543,6 +547,7 @@ HRESULT Extract(
     */
 
     const CExtractOptions *optionsPtr = &options;
+#ifndef Z7_SFX
     CExtractOptions smartOptions;
     CArchiveLink innerLink;      // is used for compound archives
     bool extractInnerLink = false;
@@ -617,8 +622,13 @@ HRESULT Extract(
       }
       optionsPtr = &smartOptions;
     }
+#endif // Z7_SFX
 
-    CArchiveLink &activeLink = extractInnerLink ? innerLink : arcLink;
+    CArchiveLink &activeLink =
+#ifndef Z7_SFX
+      extractInnerLink ? innerLink :
+#endif
+      arcLink;
 
     CArc &arc = activeLink.Arcs.Back();
     arc.MTime.Def = !options.StdInMode
@@ -646,8 +656,10 @@ HRESULT Extract(
         calcCrc,
         extractCallback, faeCallback, ecs,
         errorMessage, packProcessed);
+#ifndef Z7_SFX
     if (innerTempCleanup)
       NDir::DeleteFileAlways(innerTempPath);
+#endif
     RINOK(decompressResult)
 
     if (!options.StdInMode)
@@ -665,8 +677,10 @@ HRESULT Extract(
     RINOK(faeCallback->SetCompleted(&totalPackProcessed))
   }
 
+#ifndef Z7_SFX
   if (!smartTempRoot.IsEmpty())
     NFile::NDir::RemoveDirWithSubItems(smartTempRoot);
+#endif
 
   st.NumFolders = ecs->NumFolders;
   st.NumFiles = ecs->NumFiles;

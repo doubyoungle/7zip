@@ -124,8 +124,29 @@ jobs:
           copy CPP\7zip\UI\Console\x64\7z.exe _bin\
           copy CPP\7zip\UI\Explorer\x64\7-zip.dll _bin\
           copy CPP\7zip\UI\Explorer\o\7-zip.dll _bin\7-zip32.dll
-          for %f in (7zFM.exe 7za.exe 7zG.exe 7z.dll 7z.exe 7-zip.dll 7-zip32.dll) do @if not exist _bin\%f exit /b 1
           dir _bin
+
+      - name: Verify collected files
+        if: always()
+        shell: pwsh
+        run: |
+          $need = @('7zFM.exe', '7za.exe', '7zG.exe', '7z.dll', '7z.exe', '7-zip.dll', '7-zip32.dll')
+          $missing = @($need | Where-Object { -not (Test-Path (Join-Path '_bin' $_)) })
+          if ($missing.Count -gt 0) {
+            $missing | ForEach-Object { Write-Host "::error::missing artifact file: $_" }
+            $dirs = (Get-ChildItem 'CPP\7zip\UI\Explorer' -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }) -join ', '
+            Write-Host "::error::Explorer subdirs: $dirs"
+            foreach ($d in 'CPP\7zip\UI\Explorer\o', 'CPP\7zip\UI\Explorer\x64', 'CPP\7zip\UI\Console\x64', 'CPP\7zip\Bundles\Format7zF\x64', 'CPP\7zip\Bundles\Fm\x64') {
+              if (Test-Path $d) {
+                $names = (Get-ChildItem $d -File | ForEach-Object { $_.Name } | Select-Object -First 12) -join ', '
+                Write-Host "::error::[$d]: $names"
+              } else {
+                Write-Host "::error::dir missing: $d"
+              }
+            }
+            throw "missing files: $($missing -join ', ')"
+          }
+          Write-Host 'all collected files present'
 
       - name: Upload binaries
         uses: actions/upload-artifact@v4

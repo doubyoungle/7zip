@@ -111,7 +111,7 @@ jobs:
         run: |
           set "LIB=%LIB%;%CD%\_libs\x86"
           cd CPP\7zip\UI\Explorer
-          nmake
+          nmake PLATFORM=x86
 
       - name: Collect binaries
         shell: cmd
@@ -123,7 +123,7 @@ jobs:
           copy CPP\7zip\Bundles\Format7zF\x64\7z.dll _bin\
           copy CPP\7zip\UI\Console\x64\7z.exe _bin\
           copy CPP\7zip\UI\Explorer\x64\7-zip.dll _bin\
-          copy CPP\7zip\UI\Explorer\o\7-zip.dll _bin\7-zip32.dll
+          copy CPP\7zip\UI\Explorer\x86\7-zip.dll _bin\7-zip32.dll
           dir _bin
 
       - name: Verify collected files
@@ -164,7 +164,7 @@ jobs:
           copy CPP\7zip\UI\GUI\x64\7zG.exe _payload\
           copy CPP\7zip\Bundles\Fm\x64\7zFM.exe _payload\
           copy CPP\7zip\UI\Explorer\x64\7-zip.dll _payload\
-          copy CPP\7zip\UI\Explorer\o\7-zip.dll _payload\7-zip32.dll
+          copy CPP\7zip\UI\Explorer\x86\7-zip.dll _payload\7-zip32.dll
           copy CPP\7zip\Bundles\SFXWin\x64\7z.sfx _payload\
           copy CPP\7zip\Bundles\SFXCon\x64\7zCon.sfx _payload\
           copy C\Util\7zipUninstall\x64\7zipUninstall.exe _payload\Uninstall.exe

@@ -180,6 +180,8 @@ jobs:
           copy DOC\src-history.txt _payload\History.txt || (echo ::error::payload source missing: src-history.txt & exit /b 1)
           if exist "%ProgramW6432%\7-Zip\7-zip.chm" copy "%ProgramW6432%\7-Zip\7-zip.chm" _payload\
           if exist "%ProgramW6432%\7-Zip\Lang" xcopy /E /I /Q "%ProgramW6432%\7-Zip\Lang" _payload\Lang\
+          if not exist _payload\Lang mkdir _payload\Lang
+          copy DOC\SmartExtract\Lang\zh-cn.txt _payload\Lang\ || (echo ::error::patched zh-cn.txt missing & exit /b 1)
           dir _payload
           cd _payload
           ..\_bin\7za.exe a -t7z -m0=lzma -mx9 -mf=off -ms=on ..\_bin\payload.7z * || (echo ::error::payload packaging failed & exit /b 1)
@@ -286,6 +288,14 @@ jobs:
           }
           if (-not (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\7-Zip')) { $failures.Add('uninstall registry key missing') }
           if (-not (Test-Path 'HKLM:\SOFTWARE\Classes\CLSID\{23170F69-40C1-278A-1000-000100020000}\InprocServer32')) { $failures.Add('shell extension CLSID registry key missing') }
+          $zhcn = Join-Path $dir 'Lang\zh-cn.txt'
+          if (Test-Path $zhcn) {
+            $content = Get-Content $zhcn -Raw -Encoding UTF8
+            if (-not $content.Contains('智能解压缩')) { $failures.Add('Lang\zh-cn.txt lacks the Smart Extract translation') }
+            else { Write-Host 'zh-cn.txt carries the Smart Extract strings' }
+          } else {
+            $failures.Add('Lang\zh-cn.txt missing after install')
+          }
           if ($failures.Count -gt 0) {
             $failures | ForEach-Object { Write-Host "::error::$_" }
             throw ($failures -join '; ')
